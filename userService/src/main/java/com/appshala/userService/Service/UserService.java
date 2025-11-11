@@ -39,5 +39,5 @@ public interface UserService {
     public UUID getCurrentAdminId(@RequestHeader("currentAdminId") UUID adminID);
     public boolean checkUserExistsById(UUID userId);
 
-    public ImportResult processBulkImport(MultipartFile file , UUID adminId) throws Exception;
+//    public ImportResult processBulkImport(MultipartFile file , UUID adminId) throws Exception;
 }

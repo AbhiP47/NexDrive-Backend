@@ -12,6 +12,23 @@
         <module name="eurekaServer" />
         <module name="userGroupService" />
         <module name="storageservice" />
+      </profile>
+      <profile name="Annotation profile for emailnotificationservice" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <processorPath>
+          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/unknown/lombok-unknown.jar" />
+        </processorPath>
+        <module name="emailnotificationservice" />
+      </profile>
+      <profile name="Annotation profile for userService" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <processorPath>
+          <entry name="$MAVEN_REPOSITORY$/org/projectlombok/lombok/1.18.38/lombok-1.18.38.jar" />
+        </processorPath>
         <module name="userService" />
       </profile>
     </annotationProcessing>
@@ -20,6 +37,7 @@
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
       <module name="apiGateway" options="-parameters" />
       <module name="configserver" options="-parameters" />
+      <module name="emailnotificationservice" options="-parameters" />
       <module name="eurekaServer" options="-parameters" />
       <module name="storageservice" options="-parameters" />
       <module name="userGroupService" options="-parameters" />

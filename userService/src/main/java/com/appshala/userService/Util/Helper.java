@@ -3,6 +3,8 @@ package com.appshala.userService.Util;
 import com.appshala.userService.Enum.Role;
 import org.springframework.stereotype.Component;
 
+import java.util.UUID;
+
 @Component
 public class Helper {
     public boolean isAuthorizedToCreate(Role adminRole, Role targetRole) {
@@ -21,5 +23,10 @@ public class Helper {
 
         // Any other role (e.g., EDUCATOR, standard USER) cannot create users
         return false;
+    }
+
+    public String generateSecureToken()
+    {
+        return UUID.randomUUID().toString();
     }
 }

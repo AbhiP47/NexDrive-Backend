@@ -79,42 +79,42 @@ public class UserController {
         return ResponseEntity.status(HttpStatus.OK).body(userResponse);
     }
 
-    @PostMapping("/bulk-import-users")
-    public ResponseEntity<ImportResult> bulkImportUsers(@RequestParam("file")MultipartFile file , @RequestHeader("adminId") UUID adminId)
-    {
-        // Check if the file is empty
-        if(file.isEmpty()){
-            ImportResult importResult = ImportResult.builder()
-                    .status("Failure")
-                    .message("File is Empty")
-                    .errorCount(0)
-                    .build();
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(importResult);
-        }
-        // Basic MIME type check
-        if (!"text/csv".equalsIgnoreCase(file.getContentType()) &&
-                !file.getOriginalFilename().toLowerCase().endsWith(".csv")) {
-            ImportResult importResult = ImportResult.builder()
-                    .status("Failure")
-                    .message("Invalid file type. Please upload a CSV file.")
-                    .errorCount(0)
-                    .build();
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(importResult);
-        }
-        try{
-            ImportResult result = userService.processBulkImport(file , adminId);
-            return ResponseEntity.status(HttpStatus.OK).body(result);
-        }
-        catch (Exception e){
-            log.info("Import Failed: " + e.getMessage());
-            ImportResult result = ImportResult.builder()
-                    .status("Failure")
-                    .message("Internal server error during processing : " + e.getMessage())
-                    .errorCount(0)
-                    .build();
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(result);
-        }
-    }
+//    @PostMapping("/bulk-import-users")
+//    public ResponseEntity<ImportResult> bulkImportUsers(@RequestParam("file")MultipartFile file , @RequestHeader("adminId") UUID adminId)
+//    {
+//        // Check if the file is empty
+//        if(file.isEmpty()){
+//            ImportResult importResult = ImportResult.builder()
+//                    .status("Failure")
+//                    .message("File is Empty")
+//                    .errorCount(0)
+//                    .build();
+//            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(importResult);
+//        }
+//        // Basic MIME type check
+//        if (!"text/csv".equalsIgnoreCase(file.getContentType()) &&
+//                !file.getOriginalFilename().toLowerCase().endsWith(".csv")) {
+//            ImportResult importResult = ImportResult.builder()
+//                    .status("Failure")
+//                    .message("Invalid file type. Please upload a CSV file.")
+//                    .errorCount(0)
+//                    .build();
+//            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(importResult);
+//        }
+//        try{
+//            ImportResult result = userService.processBulkImport(file , adminId);
+//            return ResponseEntity.status(HttpStatus.OK).body(result);
+//        }
+//        catch (Exception e){
+//            log.info("Import Failed: " + e.getMessage());
+//            ImportResult result = ImportResult.builder()
+//                    .status("Failure")
+//                    .message("Internal server error during processing : " + e.getMessage())
+//                    .errorCount(0)
+//                    .build();
+//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(result);
+//        }
+//    }
 
     // for checking if the user exists by userId for the group service
     @GetMapping("/userExistsById/{userId}")

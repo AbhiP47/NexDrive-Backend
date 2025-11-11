@@ -1,4 +1,4 @@
-package com.appshala.userService.Event;
+package com.appshala.userService.event;
 
 import java.util.UUID;
 
