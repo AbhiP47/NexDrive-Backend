@@ -21,7 +21,8 @@ public class NotificationConsumer {
 
     @KafkaListener(
             topics = "${kafka.topics.user-invitation}",
-            groupId="${spring.kafka.consumer.group-id}"
+            groupId="${spring.kafka.consumer.group-id}",
+            containerFactory = "kafkaListenerContainerFactory"
     )
     public void handleUserInvitation(UserInvitedEvent event) throws MessagingException {
         log.info("KAFKA : Received User Invitation Event for email: {}",event.email());
@@ -34,7 +35,8 @@ public class NotificationConsumer {
 
     @KafkaListener(
             topics = "${kafka.topics.generic-activity}",
-            groupId = "${spring.kafka.consumer.group-id}"
+            groupId = "${spring.kafka.consumer.group-id}",
+            containerFactory = "kafkaListenerContainerFactory"
     )
     public void handleGenericActivity(GenericActivityEvent event)
     {

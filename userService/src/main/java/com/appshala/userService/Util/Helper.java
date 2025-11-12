@@ -1,6 +1,8 @@
 package com.appshala.userService.Util;
 
 import com.appshala.userService.Enum.Role;
+import com.appshala.userService.Model.User;
+import com.appshala.userService.Payloads.UserResponse;
 import org.springframework.stereotype.Component;
 
 import java.util.UUID;
@@ -28,5 +30,14 @@ public class Helper {
     public String generateSecureToken()
     {
         return UUID.randomUUID().toString();
+    }
+
+    public UserResponse convertToUserResponse(User savedUser) {
+        return UserResponse.builder()
+                .name(savedUser.getName())
+                .email(savedUser.getEmail())
+                .role(savedUser.getRole())
+                .status(savedUser.getStatus())
+                .build();
     }
 }

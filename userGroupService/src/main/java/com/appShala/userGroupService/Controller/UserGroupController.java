@@ -2,6 +2,7 @@ package com.appShala.userGroupService.Controller;
 
 import com.appShala.userGroupService.Enum.GroupSortBy;
 import com.appShala.userGroupService.Enum.SortDirection;
+import com.appShala.userGroupService.Payload.GroupImportResult;
 import com.appShala.userGroupService.Payload.UserGroupRequest;
 import com.appShala.userGroupService.Payload.UserGroupResponse;
 import com.appShala.userGroupService.Service.UserGroupService;
@@ -10,6 +11,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.UUID;
@@ -83,6 +85,13 @@ public class UserGroupController {
     )
     {
         return userGroupService.getGroups(userName,sortBy,sortDirection,page,size);
+    }
+
+    @PostMapping("/bulk-import-group-members")
+    public ResponseEntity<GroupImportResult> importGroupMembers(@RequestParam("file") MultipartFile file , @RequestHeader("adminId") UUID adminId)
+    {
+
+        return null;
     }
 
     // get groupId by group name for the user service

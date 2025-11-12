@@ -17,6 +17,7 @@ import com.appshala.userService.Payloads.*;
 import com.appshala.userService.Repository.UserRepository;
 import com.appshala.userService.Service.UserService;
 import com.appshala.userService.Util.Helper;
+import com.opencsv.bean.CsvToBeanBuilder;
 import jakarta.persistence.criteria.Predicate;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,7 +30,10 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.InputStreamReader;
+import java.io.Reader;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -37,6 +41,7 @@ import java.util.List;
 import java.util.UUID;
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 @Service
@@ -99,19 +104,12 @@ public class UserServiceImpl implements UserService {
 
         UserInvitedEvent userInvitedEvent = new UserInvitedEvent(savedUser.getId().toString() , savedUser.getName() , savedUser.getEmail(), savedUser.getInvitationToken() , Instant.now().toString());
         userInvitedEventProducer.publishUserInvitedEvent(userInvitedEvent);
-        return convertToUserResponse(savedUser);
+        return helper.convertToUserResponse(savedUser);
     }
 
 
 
-    private UserResponse convertToUserResponse(User savedUser) {
-        return UserResponse.builder()
-                .name(savedUser.getName())
-                .email(savedUser.getEmail())
-                .role(savedUser.getRole())
-                .status(savedUser.getStatus())
-                .build();
-    }
+
 
     @Override
     public User findByEmail(String email) {
@@ -122,7 +120,7 @@ public class UserServiceImpl implements UserService {
     public List<UserResponse> findAll(UUID adminId) {
         List<User> users = userRepository.findAllByCreatedBy(adminId);
         return users.stream()
-                .map(this::convertToUserResponse)
+                .map(helper::convertToUserResponse)
                 .collect(Collectors.toList());
 
     }
@@ -157,7 +155,7 @@ public class UserServiceImpl implements UserService {
         return userRepository.findAll(
                 buildSpecification(role, status, memberUserIds ),
                 pageable
-        ).map(this::convertToUserResponse);
+        ).map(helper::convertToUserResponse);
     }
 
 
@@ -247,7 +245,7 @@ public class UserServiceImpl implements UserService {
                     .updatedBy(adminId)
                    .build();
             User savedUser = userRepository.save(user);
-            userResponses.add(convertToUserResponse(savedUser));
+            userResponses.add(helper.convertToUserResponse(savedUser));
         }
         return userResponses;
     }
@@ -272,91 +270,92 @@ public class UserServiceImpl implements UserService {
         if(userRequest.getStatus() != null)
             user.setStatus(userRequest.getStatus());
         User savedUser = userRepository.save(user);
-        return convertToUserResponse(savedUser);
+        return helper.convertToUserResponse(savedUser);
     }
     @Override
     public boolean checkUserExistsById(UUID userId) {
         return userRepository.existsById(userId);
     }
 
-//    @Override
-//    public ImportResult processBulkImport(MultipartFile file, UUID adminId) throws Exception {
-//
-//        Role adminRole = userRepository.findRoleById(adminId)
-//                .orElseThrow(()-> new UsernameNotFoundException("ADMIN not found with ID : "+adminId));
-//        if (adminRole != Role.ADMIN && adminRole != Role.SUPERADMIN) {
-//            throw new RuntimeException("Unauthorized: Only ADMIN or SUPERADMIN can perform bulk import.");
-//        }
-//
-//
-//        List<UserCsvRecord> allRecords;
-//
-//        try(Reader reader = new InputStreamReader(file.getInputStream()))
-//        {
-//            allRecords = new CsvToBeanBuilder<UserCsvRecord>(reader)
-//                    .withType(UserCsvRecord.class)
-//                    .withIgnoreLeadingWhiteSpace(true)
-//                    .build()
-//                    .parse();
-//        }
-//        catch(Exception e)
-//        {
-//            throw new Exception("Error parsing CSV file : " +e.getMessage());
-//        }
-//
-//        List<UserCsvRecord> usersToProcess = new ArrayList<>();
-//        List<Map<String,String>> invalidEntries = new ArrayList<>();
-//        Set<String> emailsInCsv = new HashSet<>();
-//
-//        AtomicInteger rowIndex = new AtomicInteger(1);
-//        for(UserCsvRecord record : allRecords)
-//        {
-//            Map<String,String> error = validateRecord(record, emailsInCsv , rowIndex.get() , adminRole);
-//            if(!error.isEmpty())
-//                invalidEntries.add(error);
-//            else {
-//                usersToProcess.add(record);
-//                emailsInCsv.add(record.getEmail().toLowerCase());
-//            }
-//            rowIndex.getAndIncrement();
-//        }
-//        if(!usersToProcess.isEmpty())
-//        {
-//            Set<String> uniqueEmails = usersToProcess.stream()
-//                    .map(r -> r.getEmail().toLowerCase())
-//                    .collect(Collectors.toSet());
-//            Set<String> existingEmails = userRepository.findExistingEmails(new ArrayList<>(uniqueEmails));
-//            usersToProcess.removeIf(record -> {
-//                if(existingEmails.contains(record.getEmail().toLowerCase()))
-//                {
-//                    invalidEntries.add(Map.of(
-//                            "Line",String.valueOf(rowIndex.getAndIncrement()),
-//                            "Email", record.getEmail(),
-//                            "Error" , "Email already exists in the system."
-//                    ));
-//                    return true;
-//                }
-//                return  false;
-//            });
-//        }
-//        if (!invalidEntries.isEmpty()) {
-//            return ImportResult.builder()
-//                    .status("partial success")
-//                    .message(invalidEntries.size()+"errors. Some essential fields are missing or duplicated. No users were created.")
-//                    .errorCount(invalidEntries.size())
-//                    .errorDetails(invalidEntries)
-//                    .build();
-//        }
-//        if(usersToProcess.isEmpty())
-//        {
-//            return ImportResult.builder()
-//                    .status("Failure")
-//                    .message("No valid users found to import.")
-//                    .errorCount(0)
-//                    .build();
-//        }
-//         return createUsersAndSendInvites(usersToProcess , adminId);
-//    }
+    @Override
+    public ImportResult processBulkImport(MultipartFile file, UUID adminId) throws Exception {
+
+        Role adminRole = userRepository.findRoleById(adminId)
+                .orElseThrow(()-> new UsernameNotFoundException("ADMIN not found with ID : "+adminId));
+        if (adminRole != Role.ADMIN && adminRole != Role.SUPERADMIN) {
+            throw new RuntimeException("Unauthorized: Only ADMIN or SUPERADMIN can perform bulk import.");
+        }
+
+
+        List<UserCsvRecord> allRecords;
+
+        try(Reader reader = new InputStreamReader(file.getInputStream()))
+        {
+            allRecords = new CsvToBeanBuilder<UserCsvRecord>(reader)
+                    .withType(UserCsvRecord.class)
+                    .withIgnoreLeadingWhiteSpace(true)
+                    .build()
+                    .parse();
+        }
+        catch(Exception e)
+        {
+            throw new Exception("Error parsing CSV file : " +e.getMessage());
+        }
+
+        List<UserCsvRecord> usersToProcess = new ArrayList<>();
+        List<Map<String,String>> invalidEntries = new ArrayList<>();
+        //to make sure emails cannot be duplicate in the csv file
+        Set<String> emailsInCsv = new HashSet<>();
+
+        AtomicInteger rowIndex = new AtomicInteger(1);
+        for(UserCsvRecord record : allRecords)
+        {
+            Map<String,String> error = validateRecord(record, emailsInCsv , rowIndex.get() , adminRole);
+            if(!error.isEmpty())
+                invalidEntries.add(error);
+            else {
+                usersToProcess.add(record);
+                emailsInCsv.add(record.getEmail().toLowerCase());
+            }
+            rowIndex.getAndIncrement();
+        }
+        if(!usersToProcess.isEmpty())
+        {
+            Set<String> uniqueEmails = usersToProcess.stream()
+                    .map(r -> r.getEmail().toLowerCase())
+                    .collect(Collectors.toSet());
+            Set<String> existingEmails = userRepository.findExistingEmails(new ArrayList<>(uniqueEmails));
+            usersToProcess.removeIf(record -> {
+                if(existingEmails.contains(record.getEmail().toLowerCase()))
+                {
+                    invalidEntries.add(Map.of(
+                            "Line",String.valueOf(rowIndex.getAndIncrement()),
+                            "Email", record.getEmail(),
+                            "Error" , "Email already exists in the system."
+                    ));
+                    return true;
+                }
+                return  false;
+            });
+        }
+        if (!invalidEntries.isEmpty()) {
+            return ImportResult.builder()
+                    .status("partial success")
+                    .message(invalidEntries.size()+"errors. Some essential fields are missing or duplicated. No users were created.")
+                    .errorCount(invalidEntries.size())
+                    .errorDetails(invalidEntries)
+                    .build();
+        }
+        if(usersToProcess.isEmpty())
+        {
+            return ImportResult.builder()
+                    .status("Failure")
+                    .message("No valid users found to import.")
+                    .errorCount(0)
+                    .build();
+        }
+         return createUsersAndSendInvites(usersToProcess , adminId);
+    }
 
 
     private Map<String, String> validateRecord(UserCsvRecord record, Set<String> emailsInCsv, int rowIndex , Role adminRole) {
@@ -401,57 +400,62 @@ public class UserServiceImpl implements UserService {
         }
     }
 
-//
-//    private ImportResult createUsersAndSendInvites(List<UserCsvRecord> records , UUID adminId) {
-//        Role adminRole = userRepository.findRoleById(adminId)
-//                .orElseThrow(() -> new UsernameNotFoundException("Admin not found for ID: " + adminId));
-//        if (adminRole != Role.ADMIN && adminRole != Role.SUPERADMIN) {
-//            throw new IllegalStateException("Unauthorized: Only authorized admins can create users.");
-//        }
-//        List<Map<String, String>> failedInvites = new ArrayList<>();
-//        List<User> newUsers = new ArrayList<>();
-//        for (UserCsvRecord record : records) {
-//            String token = UUID.randomUUID().toString();
-//            LocalDateTime expirationTime = LocalDateTime.now().plusDays(7);
-//            Role targetRole = Role.valueOf(record.getRole());
-//            if (!helper.isAuthorizedToCreate(adminRole, targetRole)) {
-//                log.warn("Admin {} (Role: {}) attempted to create unauthorized role: {}", adminId, adminRole, targetRole);
-//                throw new SecurityException("Admin role " + adminRole + " is not authorized to create users with role " + targetRole);
-//            }
-//            if (mailService.sendInvitationEmail(record.getEmail(), record.getName(), token)) {
-//                log.info("Successfully sent invitation mail to {} with email {}", record.getName(), record.getEmail());
-//                User user =
-//                        User.builder()
-//                                .name(record.getName())
-//                                .role(Role.valueOf(record.getRole().toString()))
-//                                .email(record.getEmail().toLowerCase())
-//                                .status(Status.INVITED)
-//                                .createdBy(adminId)
-//                                .updatedBy(adminId)
-//                                .invitationToken(token)
-//                                .tokenExpiresAt(expirationTime)
-//                                .build();
-//                newUsers.add(user);
-//            } else {
-//                log.error("Failed to send invitation email to {}).", record.getEmail());
-//                Map<String, String> failedInvite = new HashMap<>();
-//                failedInvites.add(Map.of(
-//                        "Name", record.getName(),
-//                        "Email", record.getEmail(),
-//                        "Reason", "Invitation email failed to send"
-//                ));
-//            }
-//        }
-//        List<User> savedUsers = userRepository.saveAll(newUsers);
-//        return ImportResult.builder()
-//                .status("Success with failed to send emails to " + failedInvites.size() + " records")
-//                .message("Bulk Import completed. Invitation emails sent to " + (records.size() - failedInvites.size()) + " users.")
-//                .processedCount(savedUsers.size())
-//                .errorCount(failedInvites.size())
-//                .errorDetails(failedInvites)
-//                .build();
-//
-//    }
+
+    private ImportResult createUsersAndSendInvites(List<UserCsvRecord> records , UUID adminId) {
+        Role adminRole = userRepository.findRoleById(adminId)
+                .orElseThrow(() -> new UsernameNotFoundException("Admin not found for ID: " + adminId));
+        if (adminRole != Role.ADMIN && adminRole != Role.SUPERADMIN) {
+            throw new IllegalStateException("Unauthorized: Only authorized admins can create users.");
+        }
+        List<Map<String, String>> failedInvites = new ArrayList<>();
+        List<User> newUsers = new ArrayList<>();
+        for (UserCsvRecord record : records) {
+            String token = UUID.randomUUID().toString();
+            LocalDateTime expirationTime = LocalDateTime.now().plusDays(7);
+            Role targetRole = Role.valueOf(record.getRole());
+            if (!helper.isAuthorizedToCreate(adminRole, targetRole)) {
+                log.warn("Admin {} (Role: {}) attempted to create unauthorized role: {}", adminId, adminRole, targetRole);
+                throw new SecurityException("Admin role " + adminRole + " is not authorized to create users with role " + targetRole);
+            }
+            else{
+
+                 User user =
+                         User.builder()
+                                 .name(record.getName())
+                                 .role(Role.valueOf(record.getRole().toString()))
+                                 .email(record.getEmail().toLowerCase())
+                                 .status(Status.INVITED)
+                                 .createdBy(adminId)
+                                 .updatedBy(adminId)
+                                 .invitationToken(token)
+                                 .tokenExpiresAt(expirationTime)
+                                 .build();
+                 User newUser = userRepository.save(user);
+                 newUsers.add(user);
+                 UserInvitedEvent event = new UserInvitedEvent(user.getId().toString(),record.getName(),record.getEmail().toLowerCase().trim(),token,Instant.now().toString());
+                 try{
+                 userInvitedEventProducer.publishUserInvitedEvent(event);
+                log.info("Successfully sent invitation mail to {} with email {}", record.getName(), record.getEmail());
+                 }
+                 catch (Exception e){
+                     log.error("Failed to send invitation mail to {} with email {}",record.getName(),record.getEmail());
+                     failedInvites.add(Map.of(record.getName(),record.getEmail()));
+                     userRepository.delete(user);
+
+                 }
+
+            }
+            }
+        return ImportResult
+                .builder()
+                .status("Success with the creation of "+newUsers.size()+" new users and invitation failed for "+failedInvites.size()+" users")
+                .message("Bulk Import completed. Invitation emails sent to " +newUsers.size()+ " users.")
+                .processedCount(newUsers.size())
+                .errorCount(failedInvites.size())
+                .errorDetails(failedInvites)
+                .build();
+
+    }
 
 
 

@@ -6,9 +6,12 @@ import jakarta.mail.internet.MimeMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.mail.MailException;
+import org.springframework.mail.MailSendException;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
+
+import java.util.concurrent.atomic.AtomicInteger;
 
 @Service
 @Slf4j
@@ -33,8 +36,8 @@ public class MailService {
         final String inviteLink = frontendInviteUrl + token;
 
         MimeMessage mimeMessage = mailSender.createMimeMessage();
-        try{
-            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage , true , "UTF-8");
+        try {
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
             helper.setFrom(senderEmail);
             helper.setTo(toEmail);
             helper.setSubject("You've Been Invited to Join the AppShala Platform!");
@@ -54,15 +57,13 @@ public class MailService {
                     </body>
                     </html>
                     """, userName, inviteLink, inviteLink);
-            helper.setText(htmlBody,true);
+            helper.setText(htmlBody, true);
             mailSender.send(mimeMessage);
-            log.info("MAIL : Successfully sent the invitation mail to : {}",toEmail);
-        }
-        catch (MailException | jakarta.mail.MessagingException e)
-        {
+            log.info("MAIL : Successfully sent the invitation mail to : {}", toEmail);
+        } catch (MailException | jakarta.mail.MessagingException e) {
             log.error("MAIL ERROR: Failed to send invitation to {} ({}). Cause: {}", userName, toEmail, e.getMessage());
-            throw new RuntimeException("Email dispatch failed, likely due to mail server issues.", e);
+            throw new RuntimeException("Email dispatch failed, triggering  retry/DLQ", e);
         }
-
     }
+
 }
