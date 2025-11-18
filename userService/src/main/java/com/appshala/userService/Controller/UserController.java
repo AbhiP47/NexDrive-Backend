@@ -10,6 +10,7 @@ import com.appshala.userService.Payloads.UserRequest;
 import com.appshala.userService.Payloads.UserResponse;
 import com.appshala.userService.Repository.UserRepository;
 import com.appshala.userService.Service.UserService;
+import com.appshala.userService.Util.Helper;
 import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -19,6 +20,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Slf4j
@@ -27,9 +29,11 @@ import java.util.UUID;
 public class UserController {
 
     private UserService userService;
+    private Helper helper;
 
-    public UserController(UserService userService, UserRepository userRepository) {
+    public UserController(UserService userService, UserRepository userRepository , Helper helper) {
         this.userService = userService;
+        this.helper = helper;
     }
 
     @PostMapping("/createUser")
@@ -79,47 +83,98 @@ public class UserController {
         return ResponseEntity.status(HttpStatus.OK).body(userResponse);
     }
 
-//    @PostMapping("/bulk-import-users")
-//    public ResponseEntity<ImportResult> bulkImportUsers(@RequestParam("file")MultipartFile file , @RequestHeader("adminId") UUID adminId)
-//    {
-//        // Check if the file is empty
-//        if(file.isEmpty()){
-//            ImportResult importResult = ImportResult.builder()
-//                    .status("Failure")
-//                    .message("File is Empty")
-//                    .errorCount(0)
-//                    .build();
-//            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(importResult);
-//        }
-//        // Basic MIME type check
-//        if (!"text/csv".equalsIgnoreCase(file.getContentType()) &&
-//                !file.getOriginalFilename().toLowerCase().endsWith(".csv")) {
-//            ImportResult importResult = ImportResult.builder()
-//                    .status("Failure")
-//                    .message("Invalid file type. Please upload a CSV file.")
-//                    .errorCount(0)
-//                    .build();
-//            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(importResult);
-//        }
-//        try{
-//            ImportResult result = userService.processBulkImport(file , adminId);
-//            return ResponseEntity.status(HttpStatus.OK).body(result);
-//        }
-//        catch (Exception e){
-//            log.info("Import Failed: " + e.getMessage());
-//            ImportResult result = ImportResult.builder()
-//                    .status("Failure")
-//                    .message("Internal server error during processing : " + e.getMessage())
-//                    .errorCount(0)
-//                    .build();
-//            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(result);
-//        }
-//    }
+    @PostMapping("/bulk-import-users")
+    public ResponseEntity<ImportResult> bulkImportUsers(@RequestParam("file")MultipartFile file , @RequestHeader("adminId") UUID adminId)
+    {
+        // Check if the file is empty
+        if(file.isEmpty()){
+            ImportResult importResult = ImportResult.builder()
+                    .status("Failure")
+                    .message("File is Empty")
+                    .errorCount(0)
+                    .build();
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(importResult);
+        }
+        // Basic MIME type check
+        if (!"text/csv".equalsIgnoreCase(file.getContentType()) &&
+                !file.getOriginalFilename().toLowerCase().endsWith(".csv")) {
+            ImportResult importResult = ImportResult.builder()
+                    .status("Failure")
+                    .message("Invalid file type. Please upload a CSV file.")
+                    .errorCount(0)
+                    .build();
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(importResult);
+        }
+        try{
+            ImportResult result = userService.processBulkImport(file , adminId);
+            return ResponseEntity.status(HttpStatus.OK).body(result);
+        }
+        catch (Exception e){
+            log.info("Import Failed: " + e.getMessage());
+            ImportResult result = ImportResult.builder()
+                    .status("Failure")
+                    .message("Internal server error during processing : " + e.getMessage())
+                    .errorCount(0)
+                    .build();
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(result);
+        }
+    }
 
     // for checking if the user exists by userId for the group service
     @GetMapping("/userExistsById/{userId}")
     public ResponseEntity<Boolean> checkUserExistsById(@PathVariable("userId") UUID userId) {
         boolean result = userService.checkUserExistsById(userId);
         return ResponseEntity.status(HttpStatus.FOUND).body(result);
+    }
+
+    // for registering users for group bulk import
+    @PostMapping("/registerUsers-groupImport")
+    public ResponseEntity<List<UserResponse>> registerUsers(@RequestBody List<UserCreationRequest> users ,@RequestParam("adminId") UUID adminId)
+    {
+       List<UserResponse> userResponses = userService.createUsers(users,adminId);
+       return ResponseEntity.status(HttpStatus.CREATED).body(userResponses);
+    }
+
+    // find role by id for group service
+    @GetMapping("/findRoleById")
+    public ResponseEntity<String > findRoleById(@RequestParam("adminId") UUID adminId)
+    {
+       try{
+           String role = userService.findRoleById(adminId).toString();
+           return ResponseEntity.status(HttpStatus.OK).body(role);
+       } catch (RuntimeException e) {
+           // Catches the exception thrown by your service layer logic
+           if (e.getMessage().contains("not found")) {
+               // Failure: Return 404 NOT FOUND status, which is clean and expected.
+               return ResponseEntity.status(HttpStatus.NOT_FOUND).body(e.getMessage());
+           }
+           // If it's a genuine 500-level error:
+           return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Service error during lookup.");
+       }
+    }
+
+    // find unregistered emails for group bulk import
+    @GetMapping("/find-unregistered-emails")
+    public ResponseEntity<Set<String>> findUnRegisteredEmails(@RequestParam("allEmails") Set<String> allEmails ,@RequestParam("adminId") UUID adminId)
+    {
+        try{
+            Set<String> unRegisteredEmails = userService.findUnregisteredEmails(allEmails,adminId);
+            System.out.println("Unregistered emails :"+unRegisteredEmails);
+            return ResponseEntity.status(HttpStatus.OK).body(unRegisteredEmails);
+        }
+        catch (Exception e)
+        {
+            log.error("Unable to fetch the unregistered emails "+e.getMessage());
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+    }
+
+    // find Ids from emails for group service
+    @GetMapping("/getIdsByEmails")
+    public ResponseEntity<List<UUID>> findIdsByEmails(@RequestParam("emails") List<String> emails)
+    {
+        List<UUID> ids = userService.getIdsByEmails(emails);
+        System.out.println("Ids by emails are :"+ids);
+        return ResponseEntity.status(HttpStatus.OK).body(ids);
     }
 }

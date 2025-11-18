@@ -43,6 +43,11 @@ public class MembershipServiceImpl implements MembershipService {
                         .role(userId.equals(adminId) ? MemberRole.MANAGER : MemberRole.MEMBER)
                         .build()
                 ).collect(Collectors.toList());
+        memberships.add(Membership.builder()
+                        .group(group)
+                .userId(adminId)
+                .role(MemberRole.MANAGER)
+                .build());
         return membershipRepository.saveAll(memberships);
     }
 
@@ -109,7 +114,8 @@ public class MembershipServiceImpl implements MembershipService {
     }
 
 
-    private MembershipResponse convertToMembershipResponse(List<Membership> savedMemberships , UUID adminId , UUID groupId) {
+    private MembershipResponse convertToMembershipResponse(List<Membership> savedMemberships , UUID adminId , UUID groupId)
+    {
 
 List<MemberDTO> memberDetails = savedMemberships.stream().map(membership ->
         MemberDTO.builder()

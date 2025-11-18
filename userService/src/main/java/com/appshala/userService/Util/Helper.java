@@ -3,13 +3,24 @@ package com.appshala.userService.Util;
 import com.appshala.userService.Enum.Role;
 import com.appshala.userService.Model.User;
 import com.appshala.userService.Payloads.UserResponse;
+import com.appshala.userService.Repository.UserRepository;
 import org.springframework.stereotype.Component;
 
+import javax.swing.text.html.Option;
+import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @Component
 public class Helper {
+
+    private final UserRepository userRepository;
+    public Helper(UserRepository userRepository)
+    {
+        this.userRepository = userRepository;
+    }
     public boolean isAuthorizedToCreate(Role adminRole, Role targetRole) {
+
         // Prevent any admin from creating a SUPERADMIN
         if (targetRole == Role.SUPERADMIN) {
             return false;
@@ -40,4 +51,5 @@ public class Helper {
                 .status(savedUser.getStatus())
                 .build();
     }
+
 }

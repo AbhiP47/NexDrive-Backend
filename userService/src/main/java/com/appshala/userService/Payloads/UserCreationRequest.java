@@ -14,5 +14,4 @@ public class UserCreationRequest {
    @NotBlank(message = "this field cannot be blank")
     private String email;
     private Role role;
-    private Status status;
 }

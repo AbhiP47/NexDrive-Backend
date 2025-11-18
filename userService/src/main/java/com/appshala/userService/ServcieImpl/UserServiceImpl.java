@@ -233,9 +233,11 @@ public class UserServiceImpl implements UserService {
             Role targetRole = userCreationRequest.getRole();
             if(!helper.isAuthorizedToCreate(adminRole,targetRole))
             {
-                log.warn("Admin {} (Role: {}) attempted to create unauthorized role: {}", adminId, adminRole, targetRole);
+                log.error("Admin {} (Role: {}) attempted to create unauthorized role: {}", adminId, adminRole, targetRole);
                 throw new SecurityException("Admin role " + adminRole + " is not authorized to create users with role " + targetRole);
             }
+            String token = helper.generateSecureToken();
+            String  timeStamp = LocalDateTime.now().plusDays(7).toString();
             User user =
             User.builder()
                     .name(userCreationRequest.getName())
@@ -245,7 +247,17 @@ public class UserServiceImpl implements UserService {
                     .updatedBy(adminId)
                    .build();
             User savedUser = userRepository.save(user);
-            userResponses.add(helper.convertToUserResponse(savedUser));
+            UserInvitedEvent event = new UserInvitedEvent(savedUser.getId().toString(),userCreationRequest.getName(),userCreationRequest.getEmail().toLowerCase().trim(),token,timeStamp);
+            try {
+                userInvitedEventProducer.publishUserInvitedEvent(event);
+                userResponses.add(helper.convertToUserResponse(savedUser));
+            }
+            catch (Exception e)
+            {
+                log.warn("KAKFA : failed to send invite to the user : {} , with email : {} , deleting the user from the database .",userCreationRequest.getName(),userCreationRequest.getEmail());
+                userRepository.delete(savedUser);
+            }
+
         }
         return userResponses;
     }
@@ -455,6 +467,47 @@ public class UserServiceImpl implements UserService {
                 .errorDetails(failedInvites)
                 .build();
 
+    }
+
+    public Role findRoleById(UUID adminId)
+    {
+        Optional<Role> role = userRepository.findRoleById(adminId);
+        if(role.isEmpty())
+            throw new RuntimeException("Role for the adminId : "+adminId+ " not found");
+        else
+            return role.get();
+    }
+
+    public Set<String> findUnregisteredEmails(Set<String> allEmails, UUID adminId)
+    {
+        Set<String> registeredEmails;
+        try {
+            registeredEmails = userRepository.findRegisteredEmailsByAdmin(adminId, allEmails);
+            System.out.println("userService -> registered emails  : "+registeredEmails);
+        }
+        catch (Exception e)
+        {
+            log.error("Could not find the registered emails");
+            throw new RuntimeException("ERROR retrieving the registered emails");
+        }
+
+        Set<String> unregisteredEmails = new HashSet<>(allEmails);
+        unregisteredEmails.removeAll(registeredEmails);
+        return unregisteredEmails;
+    }
+
+    public List<UUID> getIdsByEmails(List<String> emails){
+
+        List<UUID> Ids = new ArrayList<>();
+        try{
+            Ids =  userRepository.getIdsByEmails(emails);
+        }
+        catch (Exception e)
+        {
+            log.error("Could not find the Ids for the  emails");
+            throw new RuntimeException("ERROR retrieving the Ids for emails");
+        }
+        return Ids;
     }
 
 

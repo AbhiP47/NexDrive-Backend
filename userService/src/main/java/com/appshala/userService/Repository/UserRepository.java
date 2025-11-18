@@ -23,4 +23,12 @@ public interface UserRepository extends JpaRepository<User, UUID> , JpaSpecifica
 
     List<User> findAllByCreatedBy(UUID adminId);
 
+    @Query("SELECT u.email FROM User u WHERE u.createdBy = :adminId AND u.email IN :emails")
+    Set<String> findRegisteredEmailsByAdmin(
+            @Param("adminId") UUID adminId,
+            @Param("emails") Set<String> allEmails
+    );
+
+    @Query("SELECT u.id FROM User u WHERE u.email IN :emails")
+    List<UUID> getIdsByEmails(@Param("emails") List<String> emails);
 }

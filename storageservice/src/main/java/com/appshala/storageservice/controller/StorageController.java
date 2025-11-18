@@ -17,7 +17,7 @@ public class StorageController {
         this.service=service;
     }
 
-    @PostMapping("/generate-upload-url")
+    @GetMapping("/generate-upload-url")
     public ResponseEntity<PresignedUrlResponse> getUploadUrl()
     {
         String storageId = UUID.randomUUID().toString();

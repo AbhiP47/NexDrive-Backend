@@ -15,6 +15,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 public interface UserService {
@@ -39,4 +40,7 @@ public interface UserService {
     public UUID getCurrentAdminId(@RequestHeader("currentAdminId") UUID adminID);
     public boolean checkUserExistsById(UUID userId);
     public ImportResult processBulkImport(MultipartFile file , UUID adminId) throws Exception;
+    public Set<String> findUnregisteredEmails(Set<String> allEmails, UUID adminId);
+    public Role findRoleById(UUID adminId);
+    public List<UUID> getIdsByEmails(List<String> emails);
 }
