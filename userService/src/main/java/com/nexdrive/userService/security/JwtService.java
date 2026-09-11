@@ -1,7 +1,9 @@
 package com.nexdrive.userService.security;
 
+import com.nexdrive.userService.config.JwtProperties;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.oauth2.jwt.JwtException;
 import org.springframework.stereotype.Service;
 
 import java.security.interfaces.RSAPrivateKey;
